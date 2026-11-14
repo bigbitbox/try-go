@@ -14,6 +14,7 @@ import (
 	"github.com/bigbitbox/try-go/internal/workspace"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
 
 // Action describes work for the caller to execute after the terminal is restored.
@@ -46,6 +47,10 @@ type model struct {
 // Run loads the workspace list and returns a selected action. Terminal output is
 // restricted to stderr so the caller can reserve stdout for shell integration.
 func Run(cfg workspace.Config, query string) (Action, error) {
+	// Shell integration captures stdout; color capability must follow the TUI on stderr.
+	renderer := lipgloss.NewRenderer(os.Stderr)
+	lipgloss.DefaultRenderer().SetOutput(renderer.Output())
+	lipgloss.SetColorProfile(renderer.ColorProfile())
 	entries, err := workspace.LoadEntries(cfg.TriesPath, time.Now())
 	if err != nil {
 		return Action{}, fmt.Errorf("load workspaces: %w", err)
@@ -173,11 +178,11 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
-func (m *model) rows() int { return max(1, m.height-7) }
+func (m *model) rows() int { return max(1, m.height-8) }
 
 func (m *model) resizeInputs() {
-	m.search.Width = max(1, m.width-len(m.search.Prompt)-1)
-	m.input.Width = max(1, m.width-len(m.input.Prompt)-1)
+	m.search.Width = max(1, m.width-4-len(m.search.Prompt)-1)
+	m.input.Width = max(1, m.width-4-len(m.input.Prompt)-1)
 }
 
 func (m *model) keepVisible() {

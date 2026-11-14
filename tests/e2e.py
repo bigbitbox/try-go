@@ -17,7 +17,7 @@ import time
 BIN = Path(sys.argv[1] if len(sys.argv) > 1 else "bin/try-go").resolve()
 
 
-def interact(env, args, keys, expected=0, forbidden=None):
+def interact(env, args, keys, expected=0, forbidden=None, colors=None):
     master, slave = pty.openpty()
     fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", 24, 100, 0, 0))
     def session():
@@ -55,6 +55,9 @@ def interact(env, args, keys, expected=0, forbidden=None):
                     break
         stdout, _ = proc.communicate(timeout=2)
         assert proc.returncode == expected, (proc.returncode, transcript[-3000:])
+        has_colors = b"\x1b[38;" in transcript or b"\x1b[48;" in transcript
+        if colors is not None:
+            assert has_colors == colors, "TUI color detection must follow stderr, respecting NO_COLOR"
         if forbidden:
             assert forbidden not in transcript, "filesystem name injected terminal control sequence"
         if expected == 0:
@@ -119,6 +122,11 @@ def main():
         hostile_entry.mkdir()
         interact(env, ["workspace"], [b"\x04", b"\r", b"\x1b", b"\x1b", b"\x1b"], expected=1, forbidden=b"\x1b]52;")
         assert hostile_entry.is_dir(), "cancel changed hostile entry"
+        color_env = dict(env)
+        for variable in ("NO_COLOR", "CLICOLOR", "CLICOLOR_FORCE"):
+            color_env.pop(variable, None)
+        interact(color_env, [], [b"\x1b"], expected=1, colors=True)
+        interact(color_env | {"NO_COLOR": "1"}, [], [b"\x1b"], expected=1, colors=False)
         # Quoting must preserve fish backslashes, apostrophes, and executable paths too.
         for shell in ("bash", "zsh", "fish"):
             if not shutil.which(shell):
