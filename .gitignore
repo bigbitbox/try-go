@@ -1,0 +1,7 @@
+/try
+/try-go
+/result
+/bin/
+.direnv/
+__pycache__/
+.DS_Store
